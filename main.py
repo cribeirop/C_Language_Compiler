@@ -20,7 +20,7 @@ def tokenize(expression):
         else:
             raise ValueError(f"Unexpected character {expression[i]}")
     
-    return tokens
+    return;
 
 def validate_tokens(tokens):
     if not tokens:
