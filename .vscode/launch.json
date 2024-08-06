@@ -27,7 +27,7 @@
             "request": "launch",
             "module": "main",
             "args": [
-                "1+1"
+                "1   -   22"
             ]
         },
         // {
