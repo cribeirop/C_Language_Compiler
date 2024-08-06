@@ -1,66 +1,70 @@
 import sys
 
-def tokenize(expression):
-    tokens = []
-    i = 0
+class Calculator:
+    def __init__(self):
+        self.expression = sys.argv[1]
+        self.operatings = []
+    
+    def isvalid(self):
+        prev_isdigit, hasnumber = 0, 0
+        prev_caractere, prev_existing_caractere = '', ''
+        if not self.expression[0].isdigit() or not self.expression[-1].isdigit():
+            return False
+        if self.expression.replace(" ",'') == '':
+            return False
+        for caractere in self.expression:
+            if caractere.isdigit() and not prev_isdigit:
+                hasnumber = 1
+                prev_isdigit = 1
+            elif not caractere.isdigit() and not caractere == ' ':
+                prev_isdigit = 0
+            elif caractere.isdigit() and prev_isdigit and prev_caractere == ' ':
+                return False
+            if not caractere.isdigit() and not caractere == ' ' and not prev_existing_caractere.isdigit():
+                return False
+            prev_caractere = caractere
+            if caractere != ' ':
+                prev_existing_caractere = caractere
+            if self.expression.index(caractere) == len(self.expression)-1 and hasnumber == 0:
+                return False
+            if not caractere.isdigit() and caractere not in ['+', '-', ' ']:
+                return False 
+        return True
+    
+    def lexicon_exploration(self):
+        self.expression = self.expression.replace(" ", "")
+        self.operatings = [self.expression[0]]
+        for caractere in self.expression[1::]:
+            if caractere.isdigit() and self.operatings[-1].isdigit():
+                self.operatings[-1] += caractere
+            if caractere.isdigit() and not self.operatings[-1].isdigit():
+                self.operatings.append(caractere)
+            if not caractere.isdigit():
+                self.operatings.append(caractere)
+        return self.operatings
 
-    while i < len(expression):
-        if expression[i].isspace():
-            i += 1
-            continue
-        if expression[i].isdigit():
-            j = i
-            while j < len(expression) and expression[j].isdigit():
-                j += 1
-            tokens.append(expression[i:j])
-            i = j
-        elif expression[i] in ['+', '-']:
-            tokens.append(expression[i])
-            i += 1
+    def calculator(self):
+        self.result = int(self.operatings[0])
+        operation = ''
+        for element in self.operatings[1::]:
+            if not element.isdigit():
+                operation = element
+            else:
+                if operation == '+':
+                    self.result += int(element)
+                else:
+                    self.result -= int(element)
+
+        return self.result
+
+    def main(self):
+        if self.isvalid():
+            self.lexicon_exploration()
+            return self.calculator()
         else:
-            raise ValueError(f"Unexpected character {expression[i]}")
-    
-    return;
-
-def validate_tokens(tokens):
-    if not tokens:
-        raise ValueError("Expression is empty")
-    
-    if not tokens[0].isdigit():
-        raise ValueError(f"Expression cannot start with {tokens[0]}")
-    
-    for i in range(1, len(tokens), 2):
-        if tokens[i] not in ['+', '-']:
-            raise ValueError(f"Expected operator at position {i}, found {tokens[i]}")
-        if i + 1 >= len(tokens) or not tokens[i + 1].isdigit():
-            raise ValueError(f"Operator {tokens[i]} at position {i} must be followed by a number")
-
-def evaluate(tokens):
-    res = int(tokens[0])
-    i = 1
-
-    while i < len(tokens):
-        if tokens[i] in ['+', '-']:
-            if tokens[i] == '+':
-                res += int(tokens[i + 1])
-            elif tokens[i] == '-':
-                res -= int(tokens[i + 1])
-            i += 2
-        else:
-            raise ValueError(f"Unexpected token {tokens[i]} at position {i}")
-
-    return res
-
+            raise ValueError("Invalido")
+            
 if __name__ == "__main__":
-    try:
-        if len(sys.argv) != 2:
-            raise ValueError("Usage: python script.py '<expression>'")
-        
-        exp = sys.argv[1]
-        tokens = tokenize(exp)
-        validate_tokens(tokens)
-        result = evaluate(tokens)
-        print(tokens)
-        print(result)
-    except Exception as e:
-        print(f"Error: {e}")
+    calculator = Calculator()
+    result = calculator.main()
+    print(result)
