@@ -17,6 +17,9 @@ class Tokenizer:
             self.next = Token("EOF", None)
             return None
         
+        while self.source[self.position] == ' ':
+            self.position += 1
+
         character = self.source[self.position]
         if character.isdigit():
             num_str = ""
