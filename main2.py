@@ -22,8 +22,6 @@ class Calculator():
                 return False
             pcharacter = character
             
-
-    
         return True
     
     def lexer(self):

@@ -10,8 +10,29 @@ class Tokenizer:
         self.source = source
         self.position = position
         self.next = Token()
+        if not self.is_valid():
+            raise ValueError("Errosr")
         self.select_next()
 
+    def is_valid(self):
+        is_space_digit = False
+        pcharacter = ''
+
+        if not self.source[0].isdigit() or not self.source[-1].isdigit() or self.source.replace(' ', '') == '':
+            return False
+        
+        for character in self.source:
+            if character.isspace() and not is_space_digit:
+                if pcharacter.isdigit():
+                    is_space_digit = True
+            elif not character.isspace() and not character.isdigit():
+                is_space_digit = False
+            elif character.isdigit() and is_space_digit:
+                return False
+            pcharacter = character
+            
+        return True
+    
     def select_next(self):
         if self.position >= len(self.source):
             self.next = Token("EOF", None)
