@@ -1,70 +1,76 @@
 import sys
 
-class Calculator:
-    def __init__(self):
-        self.expression = sys.argv[1]
-        self.operatings = []
-    
-    def isvalid(self):
-        prev_isdigit, hasnumber = 0, 0
-        prev_caractere, prev_existing_caractere = '', ''
-        if not self.expression[0].isdigit() or not self.expression[-1].isdigit():
-            return False
-        if self.expression.replace(" ",'') == '':
-            return False
-        for caractere in self.expression:
-            if caractere.isdigit() and not prev_isdigit:
-                hasnumber = 1
-                prev_isdigit = 1
-            elif not caractere.isdigit() and not caractere == ' ':
-                prev_isdigit = 0
-            elif caractere.isdigit() and prev_isdigit and prev_caractere == ' ':
-                return False
-            if not caractere.isdigit() and not caractere == ' ' and not prev_existing_caractere.isdigit():
-                return False
-            prev_caractere = caractere
-            if caractere != ' ':
-                prev_existing_caractere = caractere
-            if self.expression.index(caractere) == len(self.expression)-1 and hasnumber == 0:
-                return False
-            if not caractere.isdigit() and caractere not in ['+', '-', ' ']:
-                return False 
-        return True
-    
-    def lexicon_exploration(self):
-        self.expression = self.expression.replace(" ", "")
-        self.operatings = [self.expression[0]]
-        for caractere in self.expression[1::]:
-            if caractere.isdigit() and self.operatings[-1].isdigit():
-                self.operatings[-1] += caractere
-            if caractere.isdigit() and not self.operatings[-1].isdigit():
-                self.operatings.append(caractere)
-            if not caractere.isdigit():
-                self.operatings.append(caractere)
-        return self.operatings
+class Token:
+    def __init__(self, type: str = None, value: None = None):
+        self.type = type
+        self.value = value
 
-    def calculator(self):
-        self.result = int(self.operatings[0])
-        operation = ''
-        for element in self.operatings[1::]:
-            if not element.isdigit():
-                operation = element
-            else:
-                if operation == '+':
-                    self.result += int(element)
-                else:
-                    self.result -= int(element)
+class Tokenizer:
+    def __init__(self, source: str, position: int):
+        self.source = source
+        self.position = position
+        self.next = Token()
+        self.select_next()
 
-        return self.result
+    def select_next(self):
+        if self.position >= len(self.source):
+            self.next = Token("EOF", None)
+            return None
+        
+        character = self.source[self.position]
+        if character.isdigit():
+            num_str = ""
+            while self.position < len(self.source) and self.source[self.position].isdigit():
+                num_str += self.source[self.position]
+                self.position += 1
+            self.position -= 1
+            self.next = Token("INT", int(num_str))
 
-    def main(self):
-        if self.isvalid():
-            self.lexicon_exploration()
-            return self.calculator()
+        elif character == '+':
+            self.next = Token("PLUS", None)
+
+        elif character == '-':
+            self.next = Token("MINUS", None)
+
         else:
-            raise ValueError("Invalido")
-            
+            raise ValueError("Error")
+        
+        self.position += 1
+
+class Parser:
+    def __init__(self, tokenizer: Tokenizer):
+        self.tokenizer = tokenizer
+
+    def parse_expression(self):
+        if self.tokenizer.next.type == "INT":
+            resultado = self.tokenizer.next.value
+            self.tokenizer.select_next()
+
+            while self.tokenizer.next.type != "EOF":
+                if self.tokenizer.next.type == "PLUS":
+                    self.tokenizer.select_next()
+                    if self.tokenizer.next.type == "INT":
+                        resultado += self.tokenizer.next.value
+                    else:
+                        raise ValueError("Error")
+                elif self.tokenizer.next.type == "MINUS":
+                    self.tokenizer.select_next()
+                    if self.tokenizer.next.type == "INT":
+                        resultado -= self.tokenizer.next.value
+                    else:
+                        raise ValueError("Error")
+                self.tokenizer.select_next()
+            return resultado
+        raise ValueError("Error")
+    
+    def run(self, code: str):
+        tokenizer = Tokenizer(source = code, position = 0)
+        parser = Parser(tokenizer = tokenizer)
+        return parser.parse_expression()
+
 if __name__ == "__main__":
-    calculator = Calculator()
-    result = calculator.main()
-    print(result)
+    code = sys.argv[1]
+    tokenizer = Tokenizer(source = code, position = 0)
+    parser = Parser(tokenizer = tokenizer)
+    run = parser.run(code = code)
+    print(run)

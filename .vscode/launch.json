@@ -27,9 +27,9 @@
             "request": "launch",
             "module": "main",
             "args": [
-                "1   -   22"
+                "1   +   2"
             ]
-        },
+        }
         // {
         //     "name": "Python Debugger: Current File with Arguments",
         //     "type": "debugpy",
