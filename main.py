@@ -10,8 +10,10 @@ class Tokenizer:
         self.source = source
         self.position = position
         self.next = Token()
+
         if not self.is_valid():
-            raise ValueError("Errosr")
+            raise ValueError("Error")
+        
         self.select_next()
 
     def is_valid(self):
@@ -55,6 +57,12 @@ class Tokenizer:
 
         elif character == '-':
             self.next = Token("MINUS", None)
+        
+        elif character == '*':
+            self.next = Token("MULT", None)
+
+        elif character == '/':
+            self.next = Token("DIV", None)
 
         else:
             raise ValueError("Error")
@@ -65,25 +73,45 @@ class Parser:
     def __init__(self, tokenizer: Tokenizer):
         self.tokenizer = tokenizer
 
+    def parse_term(self):
+        resultado = self.tokenizer.next.value
+        self.tokenizer.select_next()
+
+        while self.tokenizer.next.type in ["MULT", "DIV"]:
+            if self.tokenizer.next.type == "MULT":
+                self.tokenizer.select_next()
+                if self.tokenizer.next.type == "INT":
+                    resultado *= self.tokenizer.next.value
+                else:
+                    raise ValueError("Error")
+            elif self.tokenizer.next.type == "DIV":
+                self.tokenizer.select_next()
+                if self.tokenizer.next.type == "INT":
+                    resultado //= self.tokenizer.next.value
+                else:
+                    raise ValueError("Error")
+            self.tokenizer.select_next()
+        return resultado
+
     def parse_expression(self):
         if self.tokenizer.next.type == "INT":
-            resultado = self.tokenizer.next.value
-            self.tokenizer.select_next()
+            resultado = self.parse_term()
+            # self.tokenizer.select_next()
 
             while self.tokenizer.next.type != "EOF":
                 if self.tokenizer.next.type == "PLUS":
                     self.tokenizer.select_next()
                     if self.tokenizer.next.type == "INT":
-                        resultado += self.tokenizer.next.value
+                        resultado += self.parse_term()
                     else:
                         raise ValueError("Error")
                 elif self.tokenizer.next.type == "MINUS":
                     self.tokenizer.select_next()
                     if self.tokenizer.next.type == "INT":
-                        resultado -= self.tokenizer.next.value
+                        resultado -= self.parse_term()
                     else:
                         raise ValueError("Error")
-                self.tokenizer.select_next()
+                # self.tokenizer.select_next()
             return resultado
         raise ValueError("Error")
     
