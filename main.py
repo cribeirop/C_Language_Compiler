@@ -20,7 +20,7 @@ class Tokenizer:
         is_space_digit = False
         pcharacter = ''
 
-        if self.source.replace(' ', '') == '':
+        if self.source.replace(' ', '') == '' or self.source.count('(') != self.source.count(')'):
             return False
         
         for character in self.source:
@@ -112,12 +112,13 @@ class Parser:
     def parse_expression(self):
         resultado = self.parse_term()
 
-        if self.tokenizer.next.type == "PLUS":
-            self.tokenizer.select_next()
-            resultado += self.parse_term()
-        elif self.tokenizer.next.type == "MINUS":
-            self.tokenizer.select_next()
-            resultado -= self.parse_term()
+        while self.tokenizer.next.type in ["PLUS", "MINUS"]:
+            if self.tokenizer.next.type == "PLUS":
+                self.tokenizer.select_next()
+                resultado += self.parse_term()
+            elif self.tokenizer.next.type == "MINUS":
+                self.tokenizer.select_next()
+                resultado -= self.parse_term()
         return resultado
     
     def run(self, code: str):
