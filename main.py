@@ -5,6 +5,9 @@ class PrePro:
         pass
 
     def filter(self, source: str) -> str:
+        if source.count('/*') != source.count('*/'):
+            raise ValueError("Error")
+        
         source = source.strip()
         result = []
         skip = False
