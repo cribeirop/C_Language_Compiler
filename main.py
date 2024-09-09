@@ -5,9 +5,23 @@ class PrePro:
         pass
 
     def filter(self, source: str) -> str:
-        if "--" in source:
-            source = source[:source.index("--")]
-        return source.rstrip()
+        source = source.strip()
+        result = []
+        skip = False
+        i = 0
+        while i < len(source):
+            if not skip and source[i:i+2] == '/*':
+                skip = True
+                i += 2
+            elif skip and source[i:i+2] == '*/':
+                skip = False
+                i += 2
+            elif not skip:
+                result.append(source[i])
+                i += 1
+            else:
+                i += 1
+        return ''.join(result).strip()
     
 class Token:
     def __init__(self, type: str = None, value: None = None):
