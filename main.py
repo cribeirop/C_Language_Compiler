@@ -1,5 +1,14 @@
 import sys
 
+class PrePro:
+    def __init__(self):
+        pass
+
+    def filter(self, source: str) -> str:
+        if "--" in source:
+            source = source[:source.index("--")]
+        return source.rstrip()
+    
 class Token:
     def __init__(self, type: str = None, value: None = None):
         self.type = type
@@ -10,6 +19,14 @@ class Tokenizer:
         self.source = source
         self.position = position
         self.next = Token()
+        self.token_map = {
+            '+': "PLUS",
+            '-': "MINUS",
+            '*': "MULT",
+            '/': "DIV",
+            '(': "OP",
+            ')': "CP"
+        }
 
         if not self.is_valid():
             raise ValueError("Error")
@@ -52,23 +69,8 @@ class Tokenizer:
             self.position -= 1
             self.next = Token("INT", int(num_str))
 
-        elif character == '+':
-            self.next = Token("PLUS")
-
-        elif character == '-':
-            self.next = Token("MINUS")
-        
-        elif character == '*':
-            self.next = Token("MULT")
-
-        elif character == '/':
-            self.next = Token("DIV")
-        
-        elif character == '(':
-            self.next = Token("OP")
-        
-        elif character == ')':
-            self.next = Token("CP")
+        elif character in self.token_map:
+            self.next = Token(self.token_map[character])
 
         else:
             raise ValueError("Error")
@@ -83,13 +85,13 @@ class Parser:
         resultado = self.tokenizer.next.value
         if self.tokenizer.next.type == "INT":
             self.tokenizer.select_next()
-            return resultado
+            return IntVal(value=resultado)
         if self.tokenizer.next.type == "PLUS":
             self.tokenizer.select_next()
-            resultado = +(self.parse_factor())
+            resultado = UnOp(value='+', child=[self.parse_factor()])
         elif self.tokenizer.next.type == "MINUS":
             self.tokenizer.select_next()
-            resultado = -(self.parse_factor())
+            resultado = UnOp(value='-', child=[self.parse_factor()])
         if self.tokenizer.next.type == "OP":
             self.tokenizer.select_next()
             resultado = self.parse_expression()
@@ -103,10 +105,10 @@ class Parser:
         while self.tokenizer.next.type in ["MULT", "DIV"]:
             if self.tokenizer.next.type == "MULT":
                 self.tokenizer.select_next()
-                resultado *= self.parse_factor()
+                resultado = BinOp(value='*', children=[resultado, self.parse_factor()])
             elif self.tokenizer.next.type == "DIV":
                 self.tokenizer.select_next()
-                resultado //= self.parse_factor()
+                resultado = BinOp(value='/', children=[resultado, self.parse_factor()])
         return resultado
 
     def parse_expression(self):
@@ -115,20 +117,74 @@ class Parser:
         while self.tokenizer.next.type in ["PLUS", "MINUS"]:
             if self.tokenizer.next.type == "PLUS":
                 self.tokenizer.select_next()
-                resultado += self.parse_term()
+                resultado = BinOp(value='+', children=[resultado, self.parse_term()])
             elif self.tokenizer.next.type == "MINUS":
                 self.tokenizer.select_next()
-                resultado -= self.parse_term()
+                resultado = BinOp(value='-', children=[resultado, self.parse_term()])
         return resultado
     
     def run(self, code: str):
         tokenizer = Tokenizer(source = code, position = 0)
         parser = Parser(tokenizer = tokenizer)
-        return parser.parse_expression()
+        ast = parser.parse_expression()
+        return ast
+    
+class Node:
+    def __init__(self, value, children=None):
+        self.value = value
+        self.children = children
+    
+    def evaluate():
+        pass
+
+class BinOp(Node):
+    def __init__(self, value, children):
+        super().__init__(value, children)
+    
+    def evaluate(self):
+        if self.value == '+':
+            return self.children[0].evaluate() + self.children[1].evaluate()
+        elif self.value == '-':
+            return self.children[0].evaluate() - self.children[1].evaluate()
+        elif self.value == '*':
+            return self.children[0].evaluate() * self.children[1].evaluate()
+        elif self.value == '/':
+            return self.children[0].evaluate() // self.children[1].evaluate()
+
+class UnOp(Node):
+    def __init__(self, value, child):
+        super().__init__(value, child)
+    
+    def evaluate(self):
+        if self.value == '+':
+            return +(self.children[0].evaluate())
+        elif self.value == '-':
+            return -(self.children[0].evaluate())
+
+class IntVal(Node):
+    def __init__(self, value):
+        super().__init__(value)
+    
+    def evaluate(self):
+        return self.value
+
+class NoOp(Node):
+    def __init__(self):
+        super().__init__(None)
+    
+    def evaluate(self):
+        return None
 
 if __name__ == "__main__":
-    code = sys.argv[1]
-    tokenizer = Tokenizer(source = code, position = 0)
-    parser = Parser(tokenizer = tokenizer)
-    run = parser.run(code = code)
-    print(run)
+    file = sys.argv[1]
+
+    with open(file, "r") as arquivo:
+        linhas = arquivo.readlines()
+
+    expressoes = [PrePro().filter(linha.strip()) for linha in linhas]
+    for expressao in expressoes:
+        tokenizer = Tokenizer(source=expressao, position=0)
+        parser = Parser(tokenizer=tokenizer)
+        ast_root = parser.run(code=expressao)
+        value = ast_root.evaluate()
+        print(value)
