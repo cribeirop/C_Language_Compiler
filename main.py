@@ -99,6 +99,8 @@ class Tokenizer:
             while self.position < len(self.source) and self.source[self.position].isdigit():
                 num_str += self.source[self.position]
                 self.position += 1
+            if self.source[self.position].isalpha():
+                raise ValueError("Error")
             self.position -= 1
             self.next = Token("INT", int(num_str))
 
@@ -132,7 +134,6 @@ class Parser:
             self.tokenizer.select_next()
             while self.tokenizer.next.type != "CLOSE_BRACES":
                 statements.append(self.parse_statement())
-                # self.tokenizer.select_next()
             self.tokenizer.select_next()
         return Block(children=statements)
 
@@ -155,6 +156,8 @@ class Parser:
                     self.tokenizer.select_next()
         if self.tokenizer.next.type == "SEMICOLON":
             self.tokenizer.select_next()
+        else:
+            raise ValueError("Error")
         return statement
 
     def parse_factor(self):
