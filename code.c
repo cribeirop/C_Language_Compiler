@@ -1,6 +1,4 @@
 {
-    x = 3;
-    if (x == 3) {
-        printf(x);
-    }
+printf = 19;
+x2 = printf;
 }
