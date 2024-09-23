@@ -1,5 +1,6 @@
-
 {
-x=10;
-printf(x);
+    x = 3;
+    if (x == 3) {
+        printf(x);
+    }
 }
