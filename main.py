@@ -183,6 +183,8 @@ class Parser:
                 statement = Printf(child=[expression])
                 if self.tokenizer.next.type == "CLOSE_PARENTHESES":
                     self.tokenizer.select_next()
+        if self.tokenizer.next.type == "SEMICOLON":
+            self.tokenizer.select_next()
         elif self.tokenizer.next.type == "IF":
             self.tokenizer.select_next()
             if self.tokenizer.next.type == "OPEN_PARENTHESES":
@@ -208,8 +210,6 @@ class Parser:
                     statement = While(children=[condition, body])
         elif self.tokenizer.next.type == "OPEN_BRACES":
             statement = self.parse_block()
-        elif self.tokenizer.next.type == "SEMICOLON":
-            self.tokenizer.select_next()
         else:
             raise ValueError("Error")
 
