@@ -117,6 +117,9 @@ class Tokenizer:
             identifier = ""
             while self.position < len(self.source) and (self.source[self.position].isalpha() or self.source[self.position].isdigit() or self.source[self.position] == '_'):
                 identifier += str(self.source[self.position])
+                if identifier == "else":
+                    self.position += 1
+                    break
                 self.position += 1
             self.position -= 1
 
@@ -131,6 +134,16 @@ class Tokenizer:
                 self.next = Token("DOUBLE_EQUAL")
             else:
                 self.next = Token("EQUAL")
+            
+        elif character == '&':
+            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '&':
+                self.position += 1  # Consome o próximo '&'
+                self.next = Token("AND")
+
+        elif character == '|':
+            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '|':
+                self.position += 1  # Consome o próximo '&'
+                self.next = Token("OR")
 
         elif character in self.general_map:
             self.next = Token(self.general_map[character])
@@ -151,6 +164,8 @@ class Parser:
             while self.tokenizer.next.type != "CLOSE_BRACES":
                 statements.append(self.parse_statement())
             self.tokenizer.select_next()
+            if self.tokenizer.next.type != "EOF":
+                raise ValueError("Error")
         return Block(children=statements)
 
     def parse_statement(self):
@@ -172,8 +187,6 @@ class Parser:
                     self.tokenizer.select_next()
         if self.tokenizer.next.type == "SEMICOLON":
             self.tokenizer.select_next()
-        elif self.tokenizer.next.type not in ["IF", "WHILE", "OPEN_BRACES"]:
-            raise ValueError()
         elif self.tokenizer.next.type == "IF":
             self.tokenizer.select_next()
             if self.tokenizer.next.type == "OPEN_PARENTHESES":
@@ -236,7 +249,7 @@ class Parser:
     def parse_term(self):
         resultado = self.parse_factor()
 
-        while self.tokenizer.next.type in ["MULT", "DIV"]:
+        while self.tokenizer.next.type in ["MULT", "DIV", "AND"]:
             if self.tokenizer.next.type == "MULT":
                 self.tokenizer.select_next()
                 resultado = BinOp(value='*', children=[resultado, self.parse_factor()])
@@ -251,7 +264,7 @@ class Parser:
     def parse_expression(self):
         resultado = self.parse_term()
 
-        while self.tokenizer.next.type in ["PLUS", "MINUS"]:
+        while self.tokenizer.next.type in ["PLUS", "MINUS", "OR"]:
             if self.tokenizer.next.type == "PLUS":
                 self.tokenizer.select_next()
                 resultado = BinOp(value='+', children=[resultado, self.parse_term()])

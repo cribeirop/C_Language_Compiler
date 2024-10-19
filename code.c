@@ -1,4 +1,5 @@
 {
-printf = 19;
-x2 = printf;
+    x = scanf();
+    printf(x);
+}
 }
