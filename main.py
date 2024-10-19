@@ -164,8 +164,6 @@ class Parser:
             while self.tokenizer.next.type != "CLOSE_BRACES":
                 statements.append(self.parse_statement())
             self.tokenizer.select_next()
-            if self.tokenizer.next.type != "EOF":
-                raise ValueError("Error")
         return Block(children=statements)
 
     def parse_statement(self):
@@ -185,8 +183,6 @@ class Parser:
                 statement = Printf(child=[expression])
                 if self.tokenizer.next.type == "CLOSE_PARENTHESES":
                     self.tokenizer.select_next()
-        if self.tokenizer.next.type == "SEMICOLON":
-            self.tokenizer.select_next()
         elif self.tokenizer.next.type == "IF":
             self.tokenizer.select_next()
             if self.tokenizer.next.type == "OPEN_PARENTHESES":
@@ -210,8 +206,12 @@ class Parser:
                     self.tokenizer.select_next()
                     body = self.parse_statement()
                     statement = While(children=[condition, body])
-        if self.tokenizer.next.type == "OPEN_BRACES":
+        elif self.tokenizer.next.type == "OPEN_BRACES":
             statement = self.parse_block()
+        elif self.tokenizer.next.type == "SEMICOLON":
+            self.tokenizer.select_next()
+        else:
+            raise ValueError("Error")
 
         return statement
 
@@ -294,7 +294,10 @@ class Parser:
     def run(self, code: str):
         tokenizer = Tokenizer(source=code, position=0)
         parser = Parser(tokenizer=tokenizer)
-        return parser.parse_block()
+        block = parser.parse_block()
+        if tokenizer.next.type != "EOF":
+            raise ValueError("Error")
+        return block
     
 class Node:
     def __init__(self, value, children=None):
