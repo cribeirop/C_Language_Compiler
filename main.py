@@ -9,31 +9,43 @@ class PrePro:
         source = source.strip()
         result = []
         skip = False
+        in_string = False
         i = 0
+
         while i < len(source):
-            if not skip and source[i:i+2] == '/*':
+            if source[i] == '"' and not skip:
+                in_string = not in_string
+                result.append(source[i])
+                i += 1
+            elif not skip and not in_string and source[i:i+2] == '/*':
                 skip = True
                 i += 2
             elif skip and source[i:i+2] == '*/':
                 skip = False
                 i += 2
             elif not skip:
-                result.append(source[i])
+                if in_string or source[i] != ' ':
+                    result.append(source[i])
                 i += 1
             else:
                 i += 1
-        return ''.join(result).replace(' ','').replace('\n', '').replace('\t', '')
+
+        return ''.join(result).replace('\n', '').replace('\t', '')
 
 class SymbolTable:
     def __init__(self):
         self.symbol_table = {}
 
     def get(self, identifier):
-        return self.symbol_table[identifier]
+        return self.symbol_table.get(identifier, None)
     
     def set(self, identifier, value):
-        self.symbol_table[identifier] = value
-        return;
+        if self.get(identifier) is not None:
+            self.symbol_table[identifier] = value
+
+    def create(self, identifier, value):
+        if self.get(identifier) is None:
+            self.symbol_table[identifier] = value
     
 class Token:
     def __init__(self, type: str = None, value: None = None):
@@ -66,7 +78,11 @@ class Tokenizer:
             '==': "DOUBLE_EQUAL",
             '>': "GREATER_THAN",
             '<': "LESS_THAN",
-            '!': "NOT"
+            '!': "NOT",
+            ',': "COMMA",
+            'int': "INT_TYPE",
+            'str': "STR_TYPE",
+            "bool": "BOOL_TYPE"
         }
 
         if not self.is_valid():
@@ -117,7 +133,7 @@ class Tokenizer:
             identifier = ""
             while self.position < len(self.source) and (self.source[self.position].isalpha() or self.source[self.position].isdigit() or self.source[self.position] == '_'):
                 identifier += str(self.source[self.position])
-                if identifier == "else":
+                if identifier in ["else", "int", "str", "bool"]:
                     self.position += 1
                     break
                 self.position += 1
@@ -128,21 +144,21 @@ class Tokenizer:
             else:
                 self.next = Token("IDENTIFIER", identifier)
 
-        elif character == '=':
-            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '=':
-                self.position += 1  # Consome o próximo '='
-                self.next = Token("DOUBLE_EQUAL")
-            else:
-                self.next = Token("EQUAL")
-            
-        elif character == '&':
-            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '&':
-                self.position += 1  # Consome o próximo '&'
-                self.next = Token("AND")
+        elif character == '"':
+            string = ""
+            self.position += 1
+            while self.position < len(self.source) and self.source[self.position] != '"':
+                string += self.source[self.position]
+                self.position += 1
+            self.next = Token("STR", string)
 
-        elif character == '|':
-            if self.position + 1 < len(self.source) and self.source[self.position + 1] == '|':
-                self.position += 1  # Consome o próximo '&'
+        elif character in ['=', '&', '|'] and self.position + 1 < len(self.source) and self.source[self.position + 1] == character:
+            self.position += 1
+            if character == '=':
+                self.next = Token("DOUBLE_EQUAL")
+            elif character == '&':
+                self.next = Token("AND")
+            elif character == '|':
                 self.next = Token("OR")
 
         elif character in self.general_map:
@@ -175,6 +191,23 @@ class Parser:
                 self.tokenizer.select_next()
                 expression = self.parse_relational_expression()
                 statement = Assigment(children=[identifier, expression])
+        elif self.tokenizer.next.type in ["INT_TYPE", "STR_TYPE", "BOOL_TYPE"]:
+            self.tokenizer.select_next()
+            var_declarations = []
+            while True:
+                if self.tokenizer.next.type == "IDENTIFIER":
+                    identifier = self.tokenizer.next.value
+                    child = None
+                    self.tokenizer.select_next()
+                    if self.tokenizer.next.type == "EQUAL":
+                        self.tokenizer.select_next()
+                        child = self.parse_relational_expression()
+                    var_declarations.append(VarDec(children=[identifier, child]))
+                    if self.tokenizer.next.type == "COMMA":
+                        self.tokenizer.select_next()
+                        continue
+                    break
+            statement = Block(children=var_declarations)
         elif self.tokenizer.next.type == "PRINTF":
             self.tokenizer.select_next()
             if self.tokenizer.next.type == "OPEN_PARENTHESES":
@@ -223,6 +256,9 @@ class Parser:
         if self.tokenizer.next.type == "INT":
             self.tokenizer.select_next()
             return IntVal(value=resultado)
+        if self.tokenizer.next.type == "STR":
+            self.tokenizer.select_next()
+            return StrVal(value=resultado)
         if self.tokenizer.next.type == "PLUS":
             self.tokenizer.select_next()
             resultado = UnOp(value='+', child=[self.parse_factor()])
@@ -313,23 +349,27 @@ class BinOp(Node):
     
     def evaluate(self, symbol_table):
         if self.value == '+':
-            return self.children[0].evaluate(symbol_table) + self.children[1].evaluate(symbol_table)
+            child_0 = self.children[0].evaluate(symbol_table)[0]
+            child_1 = self.children[1].evaluate(symbol_table)[0]
+            if type(child_0) == str or type(child_1) == str:
+                return (str(child_0) + str(child_1), "str")
+            return (child_0 + child_1, "int")
         elif self.value == '-':
-            return self.children[0].evaluate(symbol_table) - self.children[1].evaluate(symbol_table)
+            return (self.children[0].evaluate(symbol_table)[0] - self.children[1].evaluate(symbol_table)[0], "int")
         elif self.value == '*':
-            return self.children[0].evaluate(symbol_table) * self.children[1].evaluate(symbol_table)
+            return (self.children[0].evaluate(symbol_table)[0] * self.children[1].evaluate(symbol_table)[0], "int")
         elif self.value == '/':
-            return self.children[0].evaluate(symbol_table) // self.children[1].evaluate(symbol_table)
+            return (self.children[0].evaluate(symbol_table)[0] // self.children[1].evaluate(symbol_table)[0], "int")
         elif self.value == '||':
-            return self.children[0].evaluate(symbol_table) or self.children[1].evaluate(symbol_table)
+            return (self.children[0].evaluate(symbol_table)[0] or self.children[1].evaluate(symbol_table)[0], "int")
         elif self.value == '&&':
-            return self.children[0].evaluate(symbol_table) and self.children[1].evaluate(symbol_table)
+            return (self.children[0].evaluate(symbol_table)[0] and self.children[1].evaluate(symbol_table)[0], "int")
         elif self.value == '==':
-            return self.children[0].evaluate(symbol_table) == self.children[1].evaluate(symbol_table)
+            return (self.children[0].evaluate(symbol_table)[0] == self.children[1].evaluate(symbol_table)[0], "int")
         elif self.value == '>':
-            return self.children[0].evaluate(symbol_table) > self.children[1].evaluate(symbol_table)
+            return (self.children[0].evaluate(symbol_table)[0] > self.children[1].evaluate(symbol_table)[0], "int")
         elif self.value == '<':
-            return self.children[0].evaluate(symbol_table) < self.children[1].evaluate(symbol_table)
+            return (self.children[0].evaluate(symbol_table)[0] < self.children[1].evaluate(symbol_table)[0], "int")
         
 class UnOp(Node):
     def __init__(self, value, child):
@@ -337,18 +377,18 @@ class UnOp(Node):
     
     def evaluate(self, symbol_table):
         if self.value == '+':
-            return +(self.children[0].evaluate(symbol_table))
+            return (+ self.children[0].evaluate(symbol_table)[0], "int")
         elif self.value == '-':
-            return -(self.children[0].evaluate(symbol_table))
+            return (- self.children[0].evaluate(symbol_table)[0], "int")
         elif self.value == '!':
-            return not(self.children[0].evaluate(symbol_table))
+            return (not self.children[0].evaluate(symbol_table)[0], "int")
 
 class IntVal(Node):
     def __init__(self, value):
         super().__init__(value)
     
     def evaluate(self, symbol_table):
-        return self.value
+        return (self.value, "int")
 
 class NoOp(Node):
     def __init__(self):
@@ -359,28 +399,30 @@ class NoOp(Node):
     
 class Block(Node):
     def __init__(self, children):
-        super().__init__(children)
+        super().__init__(None, children)
     
     def evaluate(self, symbol_table):
-        for child in self.value:
+        for child in self.children:
             child.evaluate(symbol_table)
-        return;
 
 class Assigment(Node):
     def __init__(self, children):
-        super().__init__(self, children)
+        super().__init__(None, children)
     
     def evaluate(self, symbol_table):
-        symbol_table.set(self.children[0], self.children[1].evaluate(symbol_table))
-        return;
+        if symbol_table.get(self.children[0]) is not None:
+            child = self.children[1].evaluate(symbol_table)
+            symbol_table.set(self.children[0], (child[0], child[1]))
+        else:
+            raise ValueError("Error")
 
 class Identifier(Node):
     def __init__(self, value):
-        super().__init__(self, value)
+        super().__init__(value)
 
     def evaluate(self, symbol_table):
-        if self.children in symbol_table.symbol_table:
-            return symbol_table.get(self.children)
+        if symbol_table.get(self.value) is not None:
+            return symbol_table.get(self.value)
         else:
             raise ValueError("Error")
 
@@ -389,21 +431,21 @@ class Printf(Node):
         super().__init__(self, child)
     
     def evaluate(self, symbol_table):
-        print(self.children[0].evaluate(symbol_table))
+        print(self.children[0].evaluate(symbol_table)[0])
         return;
 
 class While(Node):
     def __init__(self, children):
-        super().__init__(self, children)
+        super().__init__(None, children)
     
     def evaluate(self, symbol_table):
-        while self.children[0].evaluate(symbol_table):
+        while self.children[0].evaluate(symbol_table)[0]:
             self.children[1].evaluate(symbol_table)
         return;
 
 class If(Node):
     def __init__(self, children):
-        super().__init__(self, children)
+        super().__init__(None, children)
     
     def evaluate(self, symbol_table):
         if self.children[0].evaluate(symbol_table):
@@ -417,7 +459,29 @@ class Scanf(Node):
         super().__init__(None)
 
     def evaluate(self, symbol_table):
-        return int(input())
+        return (int(input()), "int")
+
+class StrVal(Node):
+    def __init__(self, value):
+        super().__init__(value)
+    
+    def evaluate(self, symbol_table):
+        return (self.value, "str")
+
+class VarDec(Node):
+    def __init__(self, children):
+        super().__init__(None, children)
+
+    def evaluate(self, symbol_table):
+        if symbol_table.get(self.children[0]) is not None:
+            raise ValueError("Error")
+        elif self.children[1]:
+            child = self.children[1].evaluate(symbol_table)
+            symbol_table.create(self.children[0], (child[0], child[1]))
+        elif self.children[1] is None:
+            symbol_table.create(self.children[0], None)
+        else:
+            raise ValueError("Error")
 
 if __name__ == "__main__":
     import sys
