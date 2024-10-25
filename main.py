@@ -40,7 +40,7 @@ class SymbolTable:
         return self.symbol_table.get(identifier, None)
     
     def set(self, identifier, value):
-        if self.get(identifier) is not None:
+        if identifier in self.symbol_table:
             self.symbol_table[identifier] = value
 
     def create(self, identifier, value):
@@ -365,11 +365,11 @@ class BinOp(Node):
         elif self.value == '&&':
             return (self.children[0].evaluate(symbol_table)[0] and self.children[1].evaluate(symbol_table)[0], "int")
         elif self.value == '==':
-            return (self.children[0].evaluate(symbol_table)[0] == self.children[1].evaluate(symbol_table)[0], "int")
+            return (int(self.children[0].evaluate(symbol_table)[0] == self.children[1].evaluate(symbol_table)[0]), "int")
         elif self.value == '>':
-            return (self.children[0].evaluate(symbol_table)[0] > self.children[1].evaluate(symbol_table)[0], "int")
+            return (int(self.children[0].evaluate(symbol_table)[0] > self.children[1].evaluate(symbol_table)[0]), "int")
         elif self.value == '<':
-            return (self.children[0].evaluate(symbol_table)[0] < self.children[1].evaluate(symbol_table)[0], "int")
+            return (int(self.children[0].evaluate(symbol_table)[0] < self.children[1].evaluate(symbol_table)[0]), "int")
         
 class UnOp(Node):
     def __init__(self, value, child):
@@ -381,8 +381,11 @@ class UnOp(Node):
         elif self.value == '-':
             return (- self.children[0].evaluate(symbol_table)[0], "int")
         elif self.value == '!':
-            return (not self.children[0].evaluate(symbol_table)[0], "int")
-
+            child = self.children[0].evaluate(symbol_table)[0]
+            if type(child) == int:
+                return (int(not child), "int")
+            raise ValueError("Error")
+        
 class IntVal(Node):
     def __init__(self, value):
         super().__init__(value)
@@ -410,7 +413,7 @@ class Assigment(Node):
         super().__init__(None, children)
     
     def evaluate(self, symbol_table):
-        if symbol_table.get(self.children[0]) is not None:
+        if self.children[0] in symbol_table.symbol_table:
             child = self.children[1].evaluate(symbol_table)
             symbol_table.set(self.children[0], (child[0], child[1]))
         else:
@@ -473,7 +476,7 @@ class VarDec(Node):
         super().__init__(None, children)
 
     def evaluate(self, symbol_table):
-        if symbol_table.get(self.children[0]) is not None:
+        if self.children[0] in symbol_table.symbol_table:
             raise ValueError("Error")
         elif self.children[1]:
             child = self.children[1].evaluate(symbol_table)

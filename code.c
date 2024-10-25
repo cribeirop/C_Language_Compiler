@@ -1,22 +1,23 @@
 
-{
-    str x = " - caio";
-    str y = 1 + x;
-    printf(y);
-}
+  {
+    /* v2.2 testing */
+    int x_1;
+    
+    x_1 = scanf();
+    if ((x_1 > 1) && !(x_1 < 1)) {
+        x_1 = 3;
+    }
+    else {
+        {
+        x_1 = (-20+30)*4*3/40;;;;; /* teste de comentario */
+        }
+    }
+    printf(x_1);
+    x_1 = scanf();
+    if ((x_1 > 1) && !(x_1 < 1))
+        x_1 = 3;
+    else
+        x_1 = (-20+30)*12/40;;;;;
 
-/*{
-    int x = 1;
-    int y=2;
-    if (x && 0 == 0) {
-        printf(4);
-    }
-    y=3;
-    printf(x+y);
-    int z = scanf();
-    while (x < z){
-        x = x+1;
-    }
-    printf(x);
-    printf(z);
-}*/
+    printf(x_1);
+    while ((x_1 > 1) || (x_1 == 1)) {x_1 = x_1 - 1;printf(x_1);}}
