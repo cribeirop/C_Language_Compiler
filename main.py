@@ -355,23 +355,23 @@ class BinOp(Node):
                 return (str(child_0) + str(child_1), "str")
             return (child_0 + child_1, "int")
         elif self.value == '-':
-            return (child_0[0] - child_1[0], "int")
+            return (child_0 - child_1, "int")
         elif self.value == '*':
-            return (child_0[0] * child_1[0], "int")
+            return (child_0 * child_1, "int")
         elif self.value == '/':
-            return (child_0[0] // child_1[0], "int")
+            return (child_0 // child_1, "int")
         elif self.value == '||':
-            return (child_0[0] or child_1[0], "int")
+            return (child_0 or child_1, "int")
         elif self.value == '&&':
-            return (child_0[0] and child_1[0], "int")
+            return (child_0 and child_1, "int")
         if type_0 != type_1:
             raise ValueError("Error")
         elif self.value == '==':
-            return (int(child_0[0] == child_1[0]), "int")
+            return (int(child_0 == child_1), "int")
         elif self.value == '>':
-            return (int(child_0[0] > child_1[0]), "int")
+            return (int(child_0 > child_1), "int")
         elif self.value == '<':
-            return (int(child_0[0] < child_1[0]), "int")
+            return (int(child_0 < child_1), "int")
         
 class UnOp(Node):
     def __init__(self, value, child):
