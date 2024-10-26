@@ -192,6 +192,7 @@ class Parser:
                 expression = self.parse_relational_expression()
                 statement = Assigment(children=[identifier, expression])
         elif self.tokenizer.next.type in ["INT_TYPE", "STR_TYPE", "BOOL_TYPE"]:
+            var_type = self.tokenizer.next.type
             self.tokenizer.select_next()
             var_declarations = []
             while True:
@@ -202,7 +203,7 @@ class Parser:
                     if self.tokenizer.next.type == "EQUAL":
                         self.tokenizer.select_next()
                         child = self.parse_relational_expression()
-                    var_declarations.append(VarDec(children=[identifier, child]))
+                    var_declarations.append(VarDec(value=var_type,children=[identifier, child]))
                     if self.tokenizer.next.type == "COMMA":
                         self.tokenizer.select_next()
                         continue
@@ -417,6 +418,8 @@ class Assigment(Node):
     def evaluate(self, symbol_table):
         if self.children[0] in symbol_table.symbol_table:
             child = self.children[1].evaluate(symbol_table)
+            if child[1] != symbol_table.symbol_table[self.children[0]][1]:
+                raise ValueError("Error")
             symbol_table.set(self.children[0], (child[0], child[1]))
         else:
             raise ValueError("Error")
@@ -464,10 +467,10 @@ class Scanf(Node):
         super().__init__(None)
 
     def evaluate(self, symbol_table):
-        user_input = input()
-        if user_input.isdigit():
-            return (int(user_input), "int")
-        raise ValueError("Error")
+        input_value = input()
+        if input_value.isdigit():
+            return (int(input_value), "int")
+        return (input_value, "str")
 
 class StrVal(Node):
     def __init__(self, value):
@@ -477,8 +480,8 @@ class StrVal(Node):
         return (self.value, "str")
 
 class VarDec(Node):
-    def __init__(self, children):
-        super().__init__(None, children)
+    def __init__(self, value, children):
+        super().__init__(value, children)
 
     def evaluate(self, symbol_table):
         if self.children[0] in symbol_table.symbol_table:
@@ -487,7 +490,12 @@ class VarDec(Node):
             child = self.children[1].evaluate(symbol_table)
             symbol_table.create(self.children[0], (child[0], child[1]))
         elif self.children[1] is None:
-            symbol_table.create(self.children[0], None)
+            if self.value == "INT_TYPE":
+                symbol_table.create(self.children[0], (None, "int"))
+            elif self.value == "STR_TYPE":
+                symbol_table.create(self.children[0], (None, "str"))
+            else:
+                symbol_table.create(self.children[0], (None, "bool"))
         else:
             raise ValueError("Error")
 

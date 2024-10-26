@@ -1,6 +1,8 @@
 
 {
   str x;
-  x = scanf();
-  printf(x+1);
+  x = "a";
+  str y;
+  y = "b";
+  printf(x==y);
 }
