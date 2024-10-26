@@ -348,28 +348,30 @@ class BinOp(Node):
         super().__init__(value, children)
     
     def evaluate(self, symbol_table):
+        child_0, type_0 = self.children[0].evaluate(symbol_table)
+        child_1, type_1 = self.children[1].evaluate(symbol_table)
         if self.value == '+':
-            child_0 = self.children[0].evaluate(symbol_table)[0]
-            child_1 = self.children[1].evaluate(symbol_table)[0]
-            if type(child_0) == str or type(child_1) == str:
+            if type_0 == str or type_1 == str:
                 return (str(child_0) + str(child_1), "str")
             return (child_0 + child_1, "int")
         elif self.value == '-':
-            return (self.children[0].evaluate(symbol_table)[0] - self.children[1].evaluate(symbol_table)[0], "int")
+            return (child_0[0] - child_1[0], "int")
         elif self.value == '*':
-            return (self.children[0].evaluate(symbol_table)[0] * self.children[1].evaluate(symbol_table)[0], "int")
+            return (child_0[0] * child_1[0], "int")
         elif self.value == '/':
-            return (self.children[0].evaluate(symbol_table)[0] // self.children[1].evaluate(symbol_table)[0], "int")
+            return (child_0[0] // child_1[0], "int")
         elif self.value == '||':
-            return (self.children[0].evaluate(symbol_table)[0] or self.children[1].evaluate(symbol_table)[0], "int")
+            return (child_0[0] or child_1[0], "int")
         elif self.value == '&&':
-            return (self.children[0].evaluate(symbol_table)[0] and self.children[1].evaluate(symbol_table)[0], "int")
+            return (child_0[0] and child_1[0], "int")
+        if type_0 != type_1:
+            raise ValueError("Error")
         elif self.value == '==':
-            return (int(self.children[0].evaluate(symbol_table)[0] == self.children[1].evaluate(symbol_table)[0]), "int")
+            return (int(child_0[0] == child_1[0]), "int")
         elif self.value == '>':
-            return (int(self.children[0].evaluate(symbol_table)[0] > self.children[1].evaluate(symbol_table)[0]), "int")
+            return (int(child_0[0] > child_1[0]), "int")
         elif self.value == '<':
-            return (int(self.children[0].evaluate(symbol_table)[0] < self.children[1].evaluate(symbol_table)[0]), "int")
+            return (int(child_0[0] < child_1[0]), "int")
         
 class UnOp(Node):
     def __init__(self, value, child):
@@ -462,7 +464,10 @@ class Scanf(Node):
         super().__init__(None)
 
     def evaluate(self, symbol_table):
-        return (int(input()), "int")
+        user_input = input()
+        if user_input.isdigit():
+            return (int(user_input), "int")
+        raise ValueError("Error")
 
 class StrVal(Node):
     def __init__(self, value):
