@@ -351,7 +351,7 @@ class BinOp(Node):
         child_0, type_0 = self.children[0].evaluate(symbol_table)
         child_1, type_1 = self.children[1].evaluate(symbol_table)
         if self.value == '+':
-            if type_0 == str or type_1 == str:
+            if type_0 == "str" or type_1 == "str":
                 return (str(child_0) + str(child_1), "str")
             return (child_0 + child_1, "int")
         elif self.value == '-':
