@@ -470,7 +470,7 @@ class Scanf(Node):
         input_value = input()
         if input_value.isdigit():
             return (int(input_value), "int")
-        return (input_value, "str")
+        raise ValueError("Error")
 
 class StrVal(Node):
     def __init__(self, value):
