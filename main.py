@@ -1,3 +1,5 @@
+from assembler import Assembler
+
 class PrePro:
     def __init__(self):
         pass
@@ -35,17 +37,19 @@ class PrePro:
 class SymbolTable:
     def __init__(self):
         self.symbol_table = {}
+        self.bytes = 0
 
     def get(self, identifier):
         return self.symbol_table.get(identifier, None)
     
     def set(self, identifier, value):
         if identifier in self.symbol_table:
-            self.symbol_table[identifier] = value
+            self.symbol_table[identifier] = (value[0], value[1], self.symbol_table[identifier][2])
 
     def create(self, identifier, value):
         if self.get(identifier) is None:
-            self.symbol_table[identifier] = value
+            self.symbol_table[identifier] = (value[0], value[1], 4 * self.bytes + 4)
+            self.bytes += 1
     
 class Token:
     def __init__(self, type: str = None, value: None = None):
@@ -203,7 +207,7 @@ class Parser:
                     if self.tokenizer.next.type == "EQUAL":
                         self.tokenizer.select_next()
                         child = self.parse_relational_expression()
-                    var_declarations.append(VarDec(value=var_type,children=[identifier, child]))
+                    var_declarations.append(VarDec(value=var_type, children=[identifier, child]))
                     if self.tokenizer.next.type == "COMMA":
                         self.tokenizer.select_next()
                         continue
@@ -337,9 +341,16 @@ class Parser:
         return block
     
 class Node:
+    i = 0
     def __init__(self, value, children=None):
         self.value = value
         self.children = children
+        self.id = self.newId()
+        self.assembler = Assembler()
+
+    def newId(self):
+        Node.i += 1
+        return Node.i
     
     def evaluate(self, symbol_table):
         pass
@@ -349,30 +360,41 @@ class BinOp(Node):
         super().__init__(value, children)
     
     def evaluate(self, symbol_table):
-        child_0, type_0 = self.children[0].evaluate(symbol_table)
-        child_1, type_1 = self.children[1].evaluate(symbol_table)
+        child_1 = self.children[1].evaluate(symbol_table)
+        self.assembler.write("", f"PUSH EAX\n")
+        child_0 = self.children[0].evaluate(symbol_table)
+        self.assembler.write("", f"POP EBX\n")
         if self.value == '+':
-            if type_0 == "str" or type_1 == "str":
-                return (str(child_0) + str(child_1), "str")
-            return (child_0 + child_1, "int")
+            if child_0[1] == "str" or child_1[1] == "str":
+                return (str(child_0[0]) + str(child_1[0]), "str")
+            self.assembler.write("", f"ADD EAX, EBX\n")
+            return (child_0[0] + child_1[0], "int")
         elif self.value == '-':
-            return (child_0 - child_1, "int")
+            self.assembler.write("", f"SUB EAX, EBX\n")
+            return (child_0[0] - child_1[0], "int")
         elif self.value == '*':
-            return (child_0 * child_1, "int")
+            self.assembler.write("", f"IMUL EAX, EBX\n")
+            return (child_0[0] * child_1[0], "int")
         elif self.value == '/':
-            return (child_0 // child_1, "int")
+            self.assembler.write("", f"IDIV EBX\n")
+            return (child_0[0] // child_1[0], "int")
         elif self.value == '||':
-            return (child_0 or child_1, "int")
+            self.assembler.write("", f"OR EAX, EBX\n")
+            return (child_0[0] or child_1[0], "int")
         elif self.value == '&&':
-            return (child_0 and child_1, "int")
-        if type_0 != type_1:
+            self.assembler.write("", f"AND EAX, EBX\n")
+            return (child_0[0] and child_1[0], "int")
+        if child_0[1] != child_1[1]:
             raise ValueError("Error")
         elif self.value == '==':
-            return (int(child_0 == child_1), "int")
+            self.assembler.write("", f"CMP EAX, EBX\nCALL binop_je\n")
+            return (int(child_0[0] == child_1[0]), "int")
         elif self.value == '>':
-            return (int(child_0 > child_1), "int")
+            self.assembler.write("", f"CMP EAX, EBX\nCALL binop_jg\n")
+            return (int(child_0[0] > child_1[0]), "int")
         elif self.value == '<':
-            return (int(child_0 < child_1), "int")
+            self.assembler.write("", f"CMP EAX, EBX\nCALL binop_jl\n")
+            return (int(child_0[0] < child_1[0]), "int")
         
 class UnOp(Node):
     def __init__(self, value, child):
@@ -380,12 +402,15 @@ class UnOp(Node):
     
     def evaluate(self, symbol_table):
         if self.value == '+':
+            self.assembler.write("", f"MOV EAX, {self.children[0].evaluate(symbol_table)[0]}\n")
             return (+ self.children[0].evaluate(symbol_table)[0], "int")
         elif self.value == '-':
+            self.assembler.write("", f"NEG EAX\n")
             return (- self.children[0].evaluate(symbol_table)[0], "int")
         elif self.value == '!':
             child = self.children[0].evaluate(symbol_table)[0]
             if type(child) == int:
+                self.assembler.write("", f"MOV EAX, {not self.children[0].evaluate(symbol_table)[0]}\n")
                 return (int(not child), "int")
             raise ValueError("Error")
         
@@ -394,6 +419,7 @@ class IntVal(Node):
         super().__init__(value)
     
     def evaluate(self, symbol_table):
+        self.assembler.write("", f"MOV EAX, {self.value}\n")
         return (self.value, "int")
 
 class NoOp(Node):
@@ -420,6 +446,7 @@ class Assigment(Node):
             child = self.children[1].evaluate(symbol_table)
             if child[1] != symbol_table.symbol_table[self.children[0]][1]:
                 raise ValueError("Error")
+            self.assembler.write("", f"MOV [EBP - {symbol_table.get(self.children[0])[2]}], EAX\n")
             symbol_table.set(self.children[0], (child[0], child[1]))
         else:
             raise ValueError("Error")
@@ -430,6 +457,7 @@ class Identifier(Node):
 
     def evaluate(self, symbol_table):
         if symbol_table.get(self.value) is not None:
+            self.assembler.write("", f"MOV EAX, [EBP - {symbol_table.get(self.value)[2]}]\n")
             return symbol_table.get(self.value)
         else:
             raise ValueError("Error")
@@ -440,7 +468,7 @@ class Printf(Node):
     
     def evaluate(self, symbol_table):
         print(self.children[0].evaluate(symbol_table)[0])
-        return;
+        self.assembler.write("", f"PUSH EAX\nPUSH formatout\nCALL printf\nADD ESP, 8\n")
 
 class While(Node):
     def __init__(self, children):
@@ -449,18 +477,19 @@ class While(Node):
     def evaluate(self, symbol_table):
         while self.children[0].evaluate(symbol_table)[0]:
             self.children[1].evaluate(symbol_table)
-        return;
 
 class If(Node):
     def __init__(self, children):
         super().__init__(None, children)
     
     def evaluate(self, symbol_table):
-        if self.children[0].evaluate(symbol_table):
+        if self.children[0].evaluate(symbol_table)[0]:
+            self.assembler.write("", f"IF_{self.id}:\nCMP EAX, False\nJMP ELSE_{self.id}\n")
             self.children[1].evaluate(symbol_table)
+            self.assembler.write("", f"JMP EXIT_IF_{self.id}\nELSE_{self.id}:\n")
         elif len(self.children) > 2:
             self.children[2].evaluate(symbol_table)
-        return;
+        self.assembler.write("", f"EXIT_IF_{self.id}:\n")
 
 class Scanf(Node):
     def __init__(self):
@@ -487,9 +516,12 @@ class VarDec(Node):
         if self.children[0] in symbol_table.symbol_table:
             raise ValueError("Error")
         elif self.children[1]:
+            self.assembler.write("", f"PUSH DWORD 0\n")
             child = self.children[1].evaluate(symbol_table)
             symbol_table.create(self.children[0], (child[0], child[1]))
+            self.assembler.write("", f"MOV [EBP - {symbol_table.get(self.children[0])[2]}], EAX\n")
         elif self.children[1] is None:
+            self.assembler.write("", f"PUSH DWORD 0\n")
             if self.value == "INT_TYPE":
                 symbol_table.create(self.children[0], (None, "int"))
             elif self.value == "STR_TYPE":
@@ -512,3 +544,7 @@ if __name__ == "__main__":
     parser = Parser(tokenizer=tokenizer)
     ast_root = parser.run(code=code)
     ast_root.evaluate(symbol_table=symbol_table)
+    assembler = Assembler()
+    assembler.write_header(file)
+    assembler.write_body(file)
+    assembler.write_footer(file)
