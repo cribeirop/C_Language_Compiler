@@ -99,7 +99,8 @@ class Tokenizer:
             ',': "COMMA",
             'int': "INT_TYPE",
             'str': "STR_TYPE",
-            "bool": "BOOL_TYPE",
+            'bool': "BOOL_TYPE",
+            'void': "VOID_TYPE",
             'return': "RETURN"
         }
 
@@ -151,7 +152,7 @@ class Tokenizer:
             identifier = ""
             while self.position < len(self.source) and (self.source[self.position].isalpha() or self.source[self.position].isdigit() or self.source[self.position] == '_'):
                 identifier += str(self.source[self.position])
-                if identifier in ["else", "int", "str", "bool"]:
+                if identifier in ["else", "int", "str", "bool", "void"]:
                     self.position += 1
                     break
                 self.position += 1
@@ -200,7 +201,7 @@ class Parser:
         return Statements(children=functions)
 
     def parse_function(self):
-        if self.tokenizer.next.type in ["INT_TYPE", "STR_TYPE", "BOOL_TYPE"]:
+        if self.tokenizer.next.type in ["INT_TYPE", "STR_TYPE", "BOOL_TYPE", "VOID_TYPE"]:
             func_type = self.tokenizer.next.type
             self.tokenizer.select_next()
             if self.tokenizer.next.type == "IDENTIFIER":
@@ -210,7 +211,7 @@ class Parser:
                     var_decs = []
                     self.tokenizer.select_next()
                     while self.tokenizer.next.type != "CLOSE_PARENTHESES":
-                        if self.tokenizer.next.type in ["INT_TYPE", "STR_TYPE", "BOOL_TYPE"]:
+                        if self.tokenizer.next.type in ["INT_TYPE", "STR_TYPE", "BOOL_TYPE", "VOID_TYPE"]:
                             var_type = self.tokenizer.next.type
                             self.tokenizer.select_next()
                             if self.tokenizer.next.type == "IDENTIFIER":
@@ -259,7 +260,7 @@ class Parser:
                 if self.tokenizer.next.type == "CLOSE_PARENTHESES":
                     self.tokenizer.select_next()
                     statement = Return(children=[expression])
-        elif self.tokenizer.next.type in ["INT_TYPE", "STR_TYPE", "BOOL_TYPE"]:
+        elif self.tokenizer.next.type in ["INT_TYPE", "STR_TYPE", "BOOL_TYPE", "VOID_TYPE"]:
             var_type = self.tokenizer.next.type
             self.tokenizer.select_next()
             var_declarations = []
@@ -574,8 +575,10 @@ class VarDec(Node):
                 symbol_table.create(self.children[0], (None, "int"))
             elif self.value == "STR_TYPE":
                 symbol_table.create(self.children[0], (None, "str"))
-            else:
+            elif self.value == "BOOL_TYPE":
                 symbol_table.create(self.children[0], (None, "bool"))
+            else:
+                symbol_table.create(self.children[0], (None, "void"))
         else:
             raise ValueError("Error")
 
