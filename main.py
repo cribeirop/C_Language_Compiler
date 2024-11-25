@@ -35,6 +35,7 @@ class PrePro:
 class SymbolTable:
     def __init__(self):
         self.symbol_table = {}
+        # self.func_table = {}
 
     def get(self, identifier):
         return self.symbol_table.get(identifier, None)
@@ -46,6 +47,22 @@ class SymbolTable:
     def create(self, identifier, value):
         if self.get(identifier) is None:
             self.symbol_table[identifier] = value
+
+    # def get_func(self, key):
+    #     return self.func_table.get(key)
+
+    # def set_func(self, key, value):
+    #     self.func_table[key] = value
+
+class FuncTable:
+    def __init__(self):
+        self.func_table = {}
+
+    def get(self, key):
+        return self.func_table.get(key)
+    
+    def set(self, key, value):
+        self.func_table[key] = value
     
 class Token:
     def __init__(self, type: str = None, value: None = None):
@@ -82,7 +99,8 @@ class Tokenizer:
             ',': "COMMA",
             'int': "INT_TYPE",
             'str': "STR_TYPE",
-            "bool": "BOOL_TYPE"
+            "bool": "BOOL_TYPE",
+            'return': "RETURN"
         }
 
         if not self.is_valid():
@@ -173,6 +191,39 @@ class Parser:
     def __init__(self, tokenizer: Tokenizer):
         self.tokenizer = tokenizer
     
+    def parse_program(self):
+        functions = []
+        while self.tokenizer.next.type != "EOF":
+            functions.append(self.parse_function())
+        self.tokenizer.select_next()
+        functions.append(FuncCall(value="main", children=[]))
+        return Statements(children=functions)
+
+    def parse_function(self):
+        if self.tokenizer.next.type in ["INT_TYPE", "STR_TYPE", "BOOL_TYPE"]:
+            func_type = self.tokenizer.next.type
+            self.tokenizer.select_next()
+            if self.tokenizer.next.type == "IDENTIFIER":
+                func_ident = self.tokenizer.next.value
+                self.tokenizer.select_next()
+                if self.tokenizer.next.type == "OPEN_PARENTHESES":
+                    var_decs = []
+                    self.tokenizer.select_next()
+                    while self.tokenizer.next.type != "CLOSE_PARENTHESES":
+                        if self.tokenizer.next.type in ["INT_TYPE", "STR_TYPE", "BOOL_TYPE"]:
+                            var_type = self.tokenizer.next.type
+                            self.tokenizer.select_next()
+                            if self.tokenizer.next.type == "IDENTIFIER":
+                                identifier = Identifier(value=self.tokenizer.next.value)
+                                var_decs.append(VarDec(value=var_type, children=[identifier]))
+                                self.tokenizer.select_next()
+                                if self.tokenizer.next.type == "COMMA":
+                                    self.tokenizer.select_next()                
+                    self.tokenizer.select_next()
+                    block = self.parse_block()
+                    var_dec = VarDec(value=func_type, children=var_decs)
+                    return FuncDec(value=func_ident, children=[var_dec, block])
+
     def parse_block(self):
         statements = []
         if self.tokenizer.next.type == "OPEN_BRACES":
@@ -191,6 +242,23 @@ class Parser:
                 self.tokenizer.select_next()
                 expression = self.parse_relational_expression()
                 statement = Assigment(children=[identifier, expression])
+            elif self.tokenizer.next.type == "OPEN_PARENTHESES":
+                expressions = []
+                self.tokenizer.select_next()
+                while self.tokenizer.next.type == "CLOSE_PARENTHESES":
+                    expressions.append(self.parse_relational_expression())
+                    if self.tokenizer.next.type == "COMMA":
+                        self.tokenizer.select_next()
+                self.tokenizer.select_next()
+                statement = FuncCall(value=identifier, children=expressions)
+        elif self.tokenizer.next.type == "RETURN":
+            self.tokenizer.select_next()
+            if self.tokenizer.next.type == "OPEN_PARENTHESES":
+                self.tokenizer.select_next()
+                expression = self.parse_relational_expression()
+                if self.tokenizer.next.type == "CLOSE_PARENTHESES":
+                    self.tokenizer.select_next()
+                    statement = Return(children=[expression])
         elif self.tokenizer.next.type in ["INT_TYPE", "STR_TYPE", "BOOL_TYPE"]:
             var_type = self.tokenizer.next.type
             self.tokenizer.select_next()
@@ -203,7 +271,7 @@ class Parser:
                     if self.tokenizer.next.type == "EQUAL":
                         self.tokenizer.select_next()
                         child = self.parse_relational_expression()
-                    var_declarations.append(VarDec(value=var_type,children=[identifier, child]))
+                    var_declarations.append(VarDec(value=var_type, children=[identifier, child]))
                     if self.tokenizer.next.type == "COMMA":
                         self.tokenizer.select_next()
                         continue
@@ -252,7 +320,17 @@ class Parser:
     def parse_factor(self):
         resultado = self.tokenizer.next.value
         if self.tokenizer.next.type == "IDENTIFIER":
+            identifier = self.tokenizer.next.value
             self.tokenizer.select_next()
+            if self.tokenizer.next.type == "OPEN_PARENTHESES":
+                args = []
+                self.tokenizer.select_next()
+                while self.tokenizer.next.type != "CLOSE_PARENTHESES":
+                    args.append(self.parse_relational_expression())
+                    if self.tokenizer.next.type == "COMMA":
+                        self.tokenizer.select_next()
+                self.tokenizer.select_next()
+                return FuncCall(value=identifier, children=args)
             return Identifier(value=resultado)
         if self.tokenizer.next.type == "INT":
             self.tokenizer.select_next()
@@ -331,9 +409,9 @@ class Parser:
     def run(self, code: str):
         tokenizer = Tokenizer(source=code, position=0)
         parser = Parser(tokenizer=tokenizer)
-        block = parser.parse_block()
-        if tokenizer.next.type != "EOF":
-            raise ValueError("Error")
+        block = parser.parse_program()
+        # if tokenizer.next.type != "EOF":
+        #     raise ValueError("Error")
         return block
     
 class Node:
@@ -341,16 +419,16 @@ class Node:
         self.value = value
         self.children = children
     
-    def evaluate(self, symbol_table):
+    def evaluate(self, symbol_table, func_table=None):
         pass
 
 class BinOp(Node):
     def __init__(self, value, children):
         super().__init__(value, children)
     
-    def evaluate(self, symbol_table):
-        child_0, type_0 = self.children[0].evaluate(symbol_table)
-        child_1, type_1 = self.children[1].evaluate(symbol_table)
+    def evaluate(self, symbol_table, func_table):
+        child_0, type_0 = self.children[0].evaluate(symbol_table, func_table)
+        child_1, type_1 = self.children[1].evaluate(symbol_table, func_table)
         if self.value == '+':
             if type_0 == "str" or type_1 == "str":
                 return (str(child_0) + str(child_1), "str")
@@ -378,13 +456,13 @@ class UnOp(Node):
     def __init__(self, value, child):
         super().__init__(value, child)
     
-    def evaluate(self, symbol_table):
+    def evaluate(self, symbol_table, func_table):
         if self.value == '+':
-            return (+ self.children[0].evaluate(symbol_table)[0], "int")
+            return (+ self.children[0].evaluate(symbol_table, func_table)[0], "int")
         elif self.value == '-':
-            return (- self.children[0].evaluate(symbol_table)[0], "int")
+            return (- self.children[0].evaluate(symbol_table, func_table)[0], "int")
         elif self.value == '!':
-            child = self.children[0].evaluate(symbol_table)[0]
+            child = self.children[0].evaluate(symbol_table, func_table)[0]
             if type(child) == int:
                 return (int(not child), "int")
             raise ValueError("Error")
@@ -393,31 +471,33 @@ class IntVal(Node):
     def __init__(self, value):
         super().__init__(value)
     
-    def evaluate(self, symbol_table):
+    def evaluate(self, symbol_table, func_table):
         return (self.value, "int")
 
 class NoOp(Node):
     def __init__(self):
         super().__init__(None)
     
-    def evaluate(self, symbol_table):
+    def evaluate(self, symbol_table, func_table):
         return None
     
 class Block(Node):
     def __init__(self, children):
         super().__init__(None, children)
     
-    def evaluate(self, symbol_table):
+    def evaluate(self, symbol_table, func_table):
         for child in self.children:
-            child.evaluate(symbol_table)
+            result = child.evaluate(symbol_table, func_table)
+            if isinstance(child, Return):
+                return result
 
 class Assigment(Node):
     def __init__(self, children):
         super().__init__(None, children)
     
-    def evaluate(self, symbol_table):
+    def evaluate(self, symbol_table, func_table):
         if self.children[0] in symbol_table.symbol_table:
-            child = self.children[1].evaluate(symbol_table)
+            child = self.children[1].evaluate(symbol_table, func_table)
             if child[1] != symbol_table.symbol_table[self.children[0]][1]:
                 raise ValueError("Error")
             symbol_table.set(self.children[0], (child[0], child[1]))
@@ -428,7 +508,7 @@ class Identifier(Node):
     def __init__(self, value):
         super().__init__(value)
 
-    def evaluate(self, symbol_table):
+    def evaluate(self, symbol_table, func_table):
         if symbol_table.get(self.value) is not None:
             return symbol_table.get(self.value)
         else:
@@ -438,35 +518,35 @@ class Printf(Node):
     def __init__(self, child):
         super().__init__(self, child)
     
-    def evaluate(self, symbol_table):
-        print(self.children[0].evaluate(symbol_table)[0])
+    def evaluate(self, symbol_table, func_table):
+        print(self.children[0].evaluate(symbol_table, func_table)[0])
         return;
 
 class While(Node):
     def __init__(self, children):
         super().__init__(None, children)
     
-    def evaluate(self, symbol_table):
-        while self.children[0].evaluate(symbol_table)[0]:
-            self.children[1].evaluate(symbol_table)
+    def evaluate(self, symbol_table, func_table):
+        while self.children[0].evaluate(symbol_table, func_table)[0]:
+            self.children[1].evaluate(symbol_table, func_table)
         return;
 
 class If(Node):
     def __init__(self, children):
         super().__init__(None, children)
     
-    def evaluate(self, symbol_table):
-        if self.children[0].evaluate(symbol_table):
-            self.children[1].evaluate(symbol_table)
+    def evaluate(self, symbol_table, func_table):
+        if self.children[0].evaluate(symbol_table, func_table):
+            self.children[1].evaluate(symbol_table, func_table)
         elif len(self.children) > 2:
-            self.children[2].evaluate(symbol_table)
+            self.children[2].evaluate(symbol_table, func_table)
         return;
 
 class Scanf(Node):
     def __init__(self):
         super().__init__(None)
 
-    def evaluate(self, symbol_table):
+    def evaluate(self, symbol_table, func_table):
         input_value = input()
         if input_value.isdigit():
             return (int(input_value), "int")
@@ -476,18 +556,18 @@ class StrVal(Node):
     def __init__(self, value):
         super().__init__(value)
     
-    def evaluate(self, symbol_table):
+    def evaluate(self, symbol_table, func_table):
         return (self.value, "str")
 
 class VarDec(Node):
     def __init__(self, value, children):
         super().__init__(value, children)
 
-    def evaluate(self, symbol_table):
+    def evaluate(self, symbol_table, func_table):
         if self.children[0] in symbol_table.symbol_table:
             raise ValueError("Error")
         elif self.children[1]:
-            child = self.children[1].evaluate(symbol_table)
+            child = self.children[1].evaluate(symbol_table, func_table)
             symbol_table.create(self.children[0], (child[0], child[1]))
         elif self.children[1] is None:
             if self.value == "INT_TYPE":
@@ -499,6 +579,42 @@ class VarDec(Node):
         else:
             raise ValueError("Error")
 
+class FuncDec(Node):
+    def __init__(self, value, children):
+        super().__init__(value, children)
+
+    def evaluate(self, symbol_table, func_table):
+        func_table.set(self.value, self)
+
+class FuncCall(Node):
+    def __init__(self, value, children):
+        super().__init__(value, children)
+
+    def evaluate(self, symbol_table, func_table):
+        func = func_table.get(self.value)
+        if len(self.children) != (len(func.children[0].children)):
+            raise ValueError("Error")
+        local_table = SymbolTable()
+        for child, arg_node in zip(func.children[0].children, self.children):
+            arg_value, arg_type = arg_node.evaluate(symbol_table, func_table)
+            local_table.create(child.children[0].value, (arg_value, child.value))
+        return func.children[1].evaluate(local_table, func_table)
+
+class Return(Node):
+    def __init__(self, children):
+        super().__init__(None, children)
+
+    def evaluate(self, symbol_table, func_table):
+        return self.children[0].evaluate(symbol_table, func_table)
+    
+class Statements(Node):
+    def __init__(self, children):
+        super().__init__(None, children)
+    
+    def evaluate(self, symbol_table, func_table):
+        for child in self.children:
+            child.evaluate(symbol_table, func_table)
+
 if __name__ == "__main__":
     import sys
     file = sys.argv[1]
@@ -508,7 +624,8 @@ if __name__ == "__main__":
 
     code = PrePro().filter(source=code)
     symbol_table = SymbolTable()
+    func_table = FuncTable()
     tokenizer = Tokenizer(source=code, position=0)
     parser = Parser(tokenizer=tokenizer)
     ast_root = parser.run(code=code)
-    ast_root.evaluate(symbol_table=symbol_table)
+    ast_root.evaluate(symbol_table=symbol_table, func_table=func_table)
