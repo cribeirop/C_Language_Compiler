@@ -35,7 +35,6 @@ class PrePro:
 class SymbolTable:
     def __init__(self):
         self.symbol_table = {}
-        # self.func_table = {}
 
     def get(self, identifier):
         return self.symbol_table.get(identifier, None)
@@ -47,12 +46,6 @@ class SymbolTable:
     def create(self, identifier, value):
         if self.get(identifier) is None:
             self.symbol_table[identifier] = value
-
-    # def get_func(self, key):
-    #     return self.func_table.get(key)
-
-    # def set_func(self, key, value):
-    #     self.func_table[key] = value
 
 class FuncTable:
     def __init__(self):
@@ -113,7 +106,7 @@ class Tokenizer:
         is_space_digit = False
         pcharacter = ''
 
-        if self.source.replace(' ', '') == '' or self.source.count('(') != self.source.count(')'):
+        if self.source.replace(' ', '') == '' or self.source.count('(') != self.source.count(')') or self.source.count('{') != self.source.count('}'):
             return False
         
         for character in self.source:
