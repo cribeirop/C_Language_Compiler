@@ -90,9 +90,9 @@ class Tokenizer:
             '<': "LESS_THAN",
             '!': "NOT",
             ',': "COMMA",
-            'int': "INT",
-            'str': "STR",
-            'void': "VOID",
+            'int': "INT_IDENT",
+            'str': "STR_IDENT",
+            'void': "VOID_IDENT",
             'return': "RETURN"
         }
 
@@ -193,7 +193,7 @@ class Parser:
         return Block(children=functions)
 
     def parse_function(self):
-        if self.tokenizer.next.type in ["INT", "STR", "VOID"]:
+        if self.tokenizer.next.type in ["INT_IDENT", "STR_IDENT", "VOID_IDENT"]:
             func_type = self.tokenizer.next.type
             self.tokenizer.select_next()
             if self.tokenizer.next.type == "IDENTIFIER":
@@ -203,7 +203,7 @@ class Parser:
                     var_decs = []
                     self.tokenizer.select_next()
                     while self.tokenizer.next.type != "CLOSE_PARENTHESES":
-                        if self.tokenizer.next.type in ["INT", "STR", "VOID"]:
+                        if self.tokenizer.next.type in ["INT_IDENT", "STR_IDENT", "VOID_IDENT"]:
                             var_type = self.tokenizer.next.type
                             self.tokenizer.select_next()
                             if self.tokenizer.next.type == "IDENTIFIER":
@@ -254,7 +254,7 @@ class Parser:
                 if self.tokenizer.next.type == "CLOSE_PARENTHESES":
                     self.tokenizer.select_next()
                     statement = Return(children=[expression])
-        elif self.tokenizer.next.type in ["INT", "STR", "VOID"]:
+        elif self.tokenizer.next.type in ["INT_IDENT", "STR_IDENT", "VOID_IDENT"]:
             var_type = self.tokenizer.next.type
             self.tokenizer.select_next()
             var_declarations = []
@@ -560,7 +560,12 @@ class VarDec(Node):
             child = self.children[1].evaluate(symbol_table, func_table)
             symbol_table.create(self.children[0], (child[0], child[1]))
         elif self.children[1] is None:
-            symbol_table.create(self.children[0], (None, self.value))
+            if self.value == "INT_IDENT":
+                symbol_table.create(self.children[0], (None, "INT"))
+            elif self.value == "STR_IDENT":
+                symbol_table.create(self.children[0], (None, "STR"))
+            else:
+                symbol_table.create(self.children[0], (None, "VOID"))
         else:
             raise ValueError("Error")
 
@@ -582,7 +587,12 @@ class FuncCall(Node):
         local_table = SymbolTable()
         for child, arg_node in zip(func.children[0].children, self.children):
             arg_value, arg_type = arg_node.evaluate(symbol_table, func_table)
-            local_table.create(child.children[0].value, (arg_value, child.value))
+            if child.value == "INT_IDENT":
+                local_table.create(child.children[0].value, (arg_value, "INT"))
+            elif child.value == "STR_IDENT":
+                local_table.create(child.children[0].value, (arg_value, "STR"))
+            else:
+                local_table.create(child.children[0].value, (arg_value, "VOID"))
         return func.children[1].evaluate(local_table, func_table)
 
 class Return(Node):

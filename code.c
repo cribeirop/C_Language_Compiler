@@ -1,8 +1,13 @@
-{
-  int a;
-  int b;
-  a = 3;
-  b = 2+1;
-  printf(a);
-  printf(b);
+int soma(int x) {
+
+  if (x < 3) {
+    printf(x);
+    x = soma(x+1);
+  }
+  return(x);  
+}
+
+void main() {
+  int x;
+  x = soma(1);
 }
