@@ -423,27 +423,27 @@ class BinOp(Node):
         child_0, type_0 = self.children[0].evaluate(symbol_table, func_table)
         child_1, type_1 = self.children[1].evaluate(symbol_table, func_table)
         if self.value == '+':
-            if type_0 == "STR" or type_1 == "STR":
-                return (str(child_0) + str(child_1), "STR")
-            return (child_0 + child_1, "INT")
+            if type_0 == "STR_IDENT" or type_1 == "STR_IDENT":
+                return (str(child_0) + str(child_1), "STR_IDENT")
+            return (child_0 + child_1, "INT_IDENT")
         elif self.value == '-':
-            return (child_0 - child_1, "INT")
+            return (child_0 - child_1, "INT_IDENT")
         elif self.value == '*':
-            return (child_0 * child_1, "INT")
+            return (child_0 * child_1, "INT_IDENT")
         elif self.value == '/':
-            return (child_0 // child_1, "INT")
+            return (child_0 // child_1, "INT_IDENT")
         elif self.value == '||':
-            return (child_0 or child_1, "INT")
+            return (child_0 or child_1, "INT_IDENT")
         elif self.value == '&&':
-            return (child_0 and child_1, "INT")
+            return (child_0 and child_1, "INT_IDENT")
         if type_0 != type_1:
             raise ValueError("Error")
         elif self.value == '==':
-            return (int(child_0 == child_1), "INT")
+            return (int(child_0 == child_1), "INT_IDENT")
         elif self.value == '>':
-            return (int(child_0 > child_1), "INT")
+            return (int(child_0 > child_1), "INT_IDENT")
         elif self.value == '<':
-            return (int(child_0 < child_1), "INT")
+            return (int(child_0 < child_1), "INT_IDENT")
         
 class UnOp(Node):
     def __init__(self, value, child):
@@ -451,13 +451,13 @@ class UnOp(Node):
     
     def evaluate(self, symbol_table, func_table):
         if self.value == '+':
-            return (+ self.children[0].evaluate(symbol_table, func_table)[0], "INT")
+            return (+ self.children[0].evaluate(symbol_table, func_table)[0], "INT_IDENT")
         elif self.value == '-':
-            return (- self.children[0].evaluate(symbol_table, func_table)[0], "INT")
+            return (- self.children[0].evaluate(symbol_table, func_table)[0], "INT_IDENT")
         elif self.value == '!':
             child = self.children[0].evaluate(symbol_table, func_table)[0]
             if type(child) == int:
-                return (int(not child), "INT")
+                return (int(not child), "INT_IDENT")
             raise ValueError("Error")
         
 class IntVal(Node):
@@ -465,7 +465,7 @@ class IntVal(Node):
         super().__init__(value)
     
     def evaluate(self, symbol_table, func_table):
-        return (self.value, "INT")
+        return (self.value, "INT_IDENT")
 
 class NoOp(Node):
     def __init__(self):
@@ -541,7 +541,7 @@ class Scanf(Node):
     def evaluate(self, symbol_table, func_table):
         input_value = input()
         if input_value.isdigit():
-            return (int(input_value), "INT")
+            return (int(input_value), "INT_IDENT")
         raise ValueError("Error")
 
 class StrVal(Node):
@@ -549,7 +549,7 @@ class StrVal(Node):
         super().__init__(value)
     
     def evaluate(self, symbol_table, func_table):
-        return (self.value, "STR")
+        return (self.value, "STR_IDENT")
 
 class VarDec(Node):
     def __init__(self, value, children):
@@ -562,12 +562,12 @@ class VarDec(Node):
             child = self.children[1].evaluate(symbol_table, func_table)
             symbol_table.create(self.children[0], (child[0], child[1]))
         elif self.children[1] is None:
-            if self.value == "INT_IDENT":
-                symbol_table.create(self.children[0], (None, "INT"))
-            elif self.value == "STR_IDENT":
-                symbol_table.create(self.children[0], (None, "STR"))
-            else:
-                symbol_table.create(self.children[0], (None, "VOID"))
+            # if self.value == "INT_IDENT":
+            #     symbol_table.create(self.children[0], (None, "INT_IDENT"))
+            # elif self.value == "STR_IDENT":
+            #     symbol_table.create(self.children[0], (None, "STR_IDENT"))
+            # else:
+            symbol_table.create(self.children[0], (None, self.value))
         else:
             raise ValueError("Error")
 
@@ -589,12 +589,12 @@ class FuncCall(Node):
         local_table = SymbolTable()
         for child, arg_node in zip(func.children[0].children, self.children):
             arg_value, arg_type = arg_node.evaluate(symbol_table, func_table)
-            if child.value == "INT_IDENT":
-                local_table.create(child.children[0].value, (arg_value, "INT"))
-            elif child.value == "STR_IDENT":
-                local_table.create(child.children[0].value, (arg_value, "STR"))
-            else:
-                local_table.create(child.children[0].value, (arg_value, "VOID"))
+            # if child.value == "INT_IDENT":
+            #     local_table.create(child.children[0].value, (arg_value, "INT_IDENT"))
+            # elif child.value == "STR_IDENT":
+            #     local_table.create(child.children[0].value, (arg_value, "STR_IDENT"))
+            # else:
+            local_table.create(child.children[0].value, (arg_value, child.value))
         return func.children[1].evaluate(local_table, func_table)
 
 class Return(Node):
