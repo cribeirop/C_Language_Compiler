@@ -1,13 +1,16 @@
-int soma(int x) {
+int soma(int x, int y) {
 
-  if (x < 3) {
-    printf(x);
-    x = soma(x+1);
-  }
-  return(x);  
+  int a;
+  a = x + y;
+  printf(a);
+  return(a);
 }
 
 void main() {
-  int x;
-  x = soma(1);
+  int a;
+  int b;
+  a = 3;
+  b = soma(a, 4)+1;
+  printf(a);
+  printf(b);
 }

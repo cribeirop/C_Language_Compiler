@@ -211,7 +211,9 @@ class Parser:
                                 var_decs.append(VarDec(value=var_type, children=[identifier]))
                                 self.tokenizer.select_next()
                                 if self.tokenizer.next.type == "COMMA":
-                                    self.tokenizer.select_next()                
+                                    self.tokenizer.select_next()
+                                    if self.tokenizer.next.type == "CLOSE_PARENTHESES":
+                                        raise ValueError("Error")
                     self.tokenizer.select_next()
                     block = self.parse_block()
                     var_dec = VarDec(value=func_type, children=var_decs)
