@@ -1,3 +1,4 @@
-void main() {
-  3 = 2 + 1;
+{
+  int a = 2;
+  printf(a);
 }

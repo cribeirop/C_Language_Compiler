@@ -562,11 +562,6 @@ class VarDec(Node):
             child = self.children[1].evaluate(symbol_table, func_table)
             symbol_table.create(self.children[0], (child[0], child[1]))
         elif self.children[1] is None:
-            # if self.value == "INT_IDENT":
-            #     symbol_table.create(self.children[0], (None, "INT_IDENT"))
-            # elif self.value == "STR_IDENT":
-            #     symbol_table.create(self.children[0], (None, "STR_IDENT"))
-            # else:
             symbol_table.create(self.children[0], (None, self.value))
         else:
             raise ValueError("Error")
@@ -589,11 +584,6 @@ class FuncCall(Node):
         local_table = SymbolTable()
         for child, arg_node in zip(func.children[0].children, self.children):
             arg_value, arg_type = arg_node.evaluate(symbol_table, func_table)
-            # if child.value == "INT_IDENT":
-            #     local_table.create(child.children[0].value, (arg_value, "INT_IDENT"))
-            # elif child.value == "STR_IDENT":
-            #     local_table.create(child.children[0].value, (arg_value, "STR_IDENT"))
-            # else:
             local_table.create(child.children[0].value, (arg_value, child.value))
         return func.children[1].evaluate(local_table, func_table)
 
